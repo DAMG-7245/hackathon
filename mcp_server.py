@@ -94,8 +94,8 @@ mcp = FastMCP(
     lifespan=app_lifespan,
     dependencies=[
         "pandas", "numpy", "matplotlib", "seaborn", "plotly",
-        "pinecone", "google-generativeai", "sec-edgar-downloader",  
-        "alpha_vantage", "python-dotenv", "beautifulsoup4", "lxml","aiofiles"
+        "pinecone", "google-generativeai", "sec-edgar-downloader",  # 使用pinecone而不是pinecone-client
+        "alpha_vantage", "python-dotenv", "beautifulsoup4", "lxml"
     ]
 )
 
@@ -337,16 +337,13 @@ async def get_company_overview(symbol: str) -> str:
     Args:
         symbol: Stock symbol (e.g., AAPL, MSFT, NVDA)
     """
-    # 使用全局mcp对象访问请求上下文
     request = mcp.get_request_context()
     app_ctx = request.lifespan_context
     
-    # 获取数据
     print(f"Retrieving company overview for {symbol}")
     rag_results = await app_ctx.rag_agent.get_company_overview(symbol)
     
     return rag_results
-
 
 @mcp.resource("market://{symbol}/news")
 async def get_market_news(symbol: str) -> str:
