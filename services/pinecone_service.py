@@ -2,7 +2,7 @@ import os
 from typing import Dict, List, Optional, Any
 import numpy as np
 import google.generativeai as genai
-import pinecone
+from pinecone import Pinecone, ServerlessSpec  # 更新导入语句
 
 
 class PineconeService:
@@ -20,12 +20,14 @@ class PineconeService:
         self.environment = environment
         self.initialized = False
         self.embedding_model = genai.GenerativeModel('embedding-001')
+        self.pc = None
         self._initialize()
     
     def _initialize(self) -> None:
         """Initialize the Pinecone client."""
         if not self.initialized:
-            pinecone.init(api_key=self.api_key, environment=self.environment)
+            # 使用新的API初始化
+            self.pc = Pinecone(api_key=self.api_key)
             self.initialized = True
     
     async def index_exists(self, index_name: str) -> bool:
@@ -39,7 +41,7 @@ class PineconeService:
             True if index exists, False otherwise
         """
         self._initialize()
-        return index_name in pinecone.list_indexes()
+        return index_name in self.pc.list_indexes().names()
     
     async def create_index(self, index_name: str, dimension: int = 768) -> None:
         """
@@ -52,10 +54,14 @@ class PineconeService:
         self._initialize()
         
         if not await self.index_exists(index_name):
-            pinecone.create_index(
+            self.pc.create_index(
                 name=index_name,
                 dimension=dimension,
-                metric="cosine"
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud="aws",
+                    region="us-west-2"
+                )
             )
     
     async def delete_index(self, index_name: str) -> None:
@@ -68,7 +74,7 @@ class PineconeService:
         self._initialize()
         
         if await self.index_exists(index_name):
-            pinecone.delete_index(index_name)
+            self.pc.delete_index(index_name)
     
     async def index_documents(self, index_name: str, documents: List[Dict[str, Any]]) -> None:
         """
@@ -83,7 +89,7 @@ class PineconeService:
         if not await self.index_exists(index_name):
             await self.create_index(index_name)
         
-        index = pinecone.Index(index_name)
+        index = self.pc.Index(index_name)
         
         # Process documents in batches
         batch_size = 100
@@ -122,7 +128,7 @@ class PineconeService:
         if not await self.index_exists(index_name):
             return []
         
-        index = pinecone.Index(index_name)
+        index = self.pc.Index(index_name)
         
         # Generate embedding for the query
         query_embedding = await self._generate_embeddings([query])
@@ -174,6 +180,6 @@ class PineconeService:
     
     async def disconnect(self) -> None:
         """Clean up resources."""
-        # Pinecone doesn't require explicit disconnection,
-        # but this method is included for consistency with other services
+        # Pinecone 不需要显式断开连接，
+        # 但这个方法是为了与其他服务保持一致
         pass
