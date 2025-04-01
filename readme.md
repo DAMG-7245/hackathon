@@ -15,6 +15,7 @@
 
 ## 📁 Project Structure
 
+```plaintext
 HACKATHON/
 ├── agents/                        # Intelligent agents for analysis, querying, and content generation
 │   ├── __init__.py
@@ -39,6 +40,7 @@ HACKATHON/
 ├── .env                          # Environment variables (e.g., API keys)
 ├── .gitignore                    # Files and directories to exclude from version control
 ├── mcp_server.py                 # Main program (can be CLI entry point or backend server)
+```
 
 ---
 
