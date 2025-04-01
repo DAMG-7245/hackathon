@@ -94,8 +94,8 @@ mcp = FastMCP(
     lifespan=app_lifespan,
     dependencies=[
         "pandas", "numpy", "matplotlib", "seaborn", "plotly",
-        "pinecone-client", "google-generativeai", "sec-edgar-downloader",
-        "alpha_vantage", "python-dotenv", "beautifulsoup4", "lxml"
+        "pinecone", "google-generativeai", "sec-edgar-downloader",  
+        "alpha_vantage", "python-dotenv", "beautifulsoup4", "lxml","aiofiles"
     ]
 )
 
@@ -330,54 +330,56 @@ async def get_key_financial_ratios(symbol: str, ctx: Context) -> str:
 
 
 @mcp.resource("company://{symbol}/overview")
-async def get_company_overview(symbol: str, ctx: Context) -> str:
+async def get_company_overview(symbol: str) -> str:
     """
     Get a comprehensive overview of the company based on its SEC filings.
     
     Args:
         symbol: Stock symbol (e.g., AAPL, MSFT, NVDA)
     """
-    app_ctx = ctx.request_context.lifespan_context
+    # 使用全局mcp对象访问请求上下文
+    request = mcp.get_request_context()
+    app_ctx = request.lifespan_context
     
-    # Get data from the RAG agent
-    ctx.info(f"Retrieving company overview for {symbol}")
+    # 获取数据
+    print(f"Retrieving company overview for {symbol}")
     rag_results = await app_ctx.rag_agent.get_company_overview(symbol)
     
     return rag_results
 
 
 @mcp.resource("market://{symbol}/news")
-async def get_market_news(symbol: str, ctx: Context) -> str:
+async def get_market_news(symbol: str) -> str:
     """
     Get recent market news about the specified company.
     
     Args:
         symbol: Stock symbol (e.g., AAPL, MSFT, NVDA)
     """
-    app_ctx = ctx.request_context.lifespan_context
+    request = mcp.get_request_context()
+    app_ctx = request.lifespan_context
     
-    # Get data from the web search agent
-    ctx.info(f"Searching for market news about {symbol}")
+    print(f"Searching for market news about {symbol}")
     news = await app_ctx.web_search_agent.get_news(symbol)
     
     return news
 
-
 @mcp.resource("financial://{symbol}/data")
-async def get_financial_data(symbol: str, ctx: Context) -> str:
+async def get_financial_data(symbol: str) -> str:
     """
     Get key financial data for the specified company.
     
     Args:
         symbol: Stock symbol (e.g., AAPL, MSFT, NVDA)
     """
-    app_ctx = ctx.request_context.lifespan_context
+    request = mcp.get_request_context()
+    app_ctx = request.lifespan_context
     
-    # Get data from the stock data agent
-    ctx.info(f"Retrieving financial data for {symbol}")
+    print(f"Retrieving financial data for {symbol}")
     financial_data = await app_ctx.stock_data_agent.get_financial_data(symbol)
     
     return financial_data
+
 
 
 @mcp.prompt()
