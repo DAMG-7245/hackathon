@@ -95,7 +95,7 @@ mcp = FastMCP(
     dependencies=[
         "pandas", "numpy", "matplotlib", "seaborn", "plotly",
         "pinecone", "google-generativeai", "sec-edgar-downloader",  # 使用pinecone而不是pinecone-client
-        "alpha_vantage", "python-dotenv", "beautifulsoup4", "lxml"
+        "alpha_vantage", "python-dotenv", "beautifulsoup4", "lxml","kaleido"
     ]
 )
 

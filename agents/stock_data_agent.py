@@ -251,3 +251,218 @@ class StockDataAgent:
     """
         
         return recommendation
+    
+    
+
+    def _generate_technical_summary(self, symbol: str, data: pd.DataFrame, indicators: Dict[str, Any]) -> str:
+        """
+        Generate technical analysis summary.
+        
+        Args:
+            symbol: Stock symbol
+            data: DataFrame containing stock price data
+            indicators: Dictionary containing calculated technical indicators
+            
+        Returns:
+            Formatted technical analysis summary text
+        """
+        # Extract key indicators
+        current_price = indicators["current_price"]
+        ma_20 = indicators["ma_20"]
+        ma_50 = indicators["ma_50"]
+        ma_200 = indicators["ma_200"]
+        macd = indicators["macd"]
+        signal = indicators["signal"]
+        rsi = indicators["rsi"]
+        bb_middle = indicators["bb_middle"]
+        bb_upper = indicators["bb_upper"]
+        bb_lower = indicators["bb_lower"]
+        
+        # Calculate price changes
+        df = data.copy()
+        week_change = df['close'].pct_change(periods=1).iloc[-1] * 100
+        month_change = df['close'].pct_change(periods=4).iloc[-1] * 100
+        ytd_change = df['close'].pct_change(periods=52).iloc[-1] * 100
+        
+        # Generate trend analysis
+        if current_price > ma_50 and ma_50 > ma_200:
+            trend = "Bullish (Long-Term Uptrend)"
+        elif current_price > ma_50 and ma_50 < ma_200:
+            trend = "Cautiously Bullish (Potential Golden Cross)"
+        elif current_price < ma_50 and ma_50 > ma_200:
+            trend = "Cautiously Bearish (Potential Short-Term Correction)"
+        else:
+            trend = "Bearish (Long-Term Downtrend)"
+        
+        # Format the summary text
+        summary = f"""## Technical Analysis Summary
+
+        ### Price Action
+        - **Current Price:** ${current_price:.2f}
+        - **Price Change (Week):** {week_change:.2f}%
+        - **Price Change (Month):** {month_change:.2f}%
+        - **Price Change (YTD):** {ytd_change:.2f}%
+        
+        ### Moving Averages
+        - **20-Day MA:** ${ma_20:.2f} ({'Above' if current_price > ma_20 else 'Below'} current price)
+        - **50-Day MA:** ${ma_50:.2f} ({'Above' if current_price > ma_50 else 'Below'} current price)
+        - **200-Day MA:** ${ma_200:.2f} ({'Above' if current_price > ma_200 else 'Below'} current price)
+        
+        ### Technical Indicators
+        - **Overall Trend:** {trend}
+        - **RSI (14):** {rsi:.2f} ({'Overbought' if rsi > 70 else 'Oversold' if rsi < 30 else 'Neutral'})
+        - **MACD:** {macd:.2f} ({'Bullish' if macd > signal else 'Bearish'} crossover with signal line at {signal:.2f})
+        - **Bollinger Bands:**
+        - Upper Band: ${bb_upper:.2f}
+        - Middle Band: ${bb_middle:.2f}
+        - Lower Band: ${bb_lower:.2f}
+        - Position: {
+                'Near Upper Band (Potential Resistance)' if abs(current_price - bb_upper) < 0.05 * bb_middle else
+                'Near Lower Band (Potential Support)' if abs(current_price - bb_lower) < 0.05 * bb_middle else
+                'Mid-Range'
+            }
+        
+        ### Support and Resistance Levels
+        - **Key Resistance Levels:** [to be filled]
+        - **Key Support Levels:** [to be filled]
+        
+        ### Trading Volume Analysis
+        - **Recent Volume vs Average:** {'Above average' if indicators.get('recent_volume', 0) > indicators.get('avg_volume', 0) else 'Below average'} trading volume
+        - **Volume Trend:** [to be filled]
+        
+        ### Key Price Levels to Watch
+        - **Potential Upside Target:** ${current_price * 1.1:.2f} (10% upside)
+        - **Potential Downside Risk:** ${current_price * 0.9:.2f} (10% downside)
+        - **Stop Loss Suggestion:** ${current_price * 0.85:.2f} (15% downside protection)
+        """
+        
+        return summary
+    
+    def _calculate_technical_indicators(self, data: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Calculate technical indicators for stock data.
+        
+        Args:
+            data: DataFrame containing stock price data
+            
+        Returns:
+            Dictionary containing calculated technical indicators
+        """
+        # Make a copy to avoid modifying the original data
+        df = data.copy()
+        
+        # Rename columns to standardized names
+        column_mapping = {}
+        for col in df.columns:
+            if '1. open' in col or 'open' in col.lower():
+                column_mapping[col] = 'open'
+            elif '2. high' in col or 'high' in col.lower():
+                column_mapping[col] = 'high'
+            elif '3. low' in col or 'low' in col.lower():
+                column_mapping[col] = 'low'
+            elif '4. close' in col or 'close' in col.lower():
+                column_mapping[col] = 'close'
+            elif '5. volume' in col or 'volume' in col.lower():
+                column_mapping[col] = 'volume'
+        
+        # Apply the rename if we found mappings
+        if column_mapping:
+            df = df.rename(columns=column_mapping)
+        
+        # Check if 'close' column exists
+        if 'close' not in df.columns:
+            # Print available columns for debugging
+            print(f"Available columns: {list(df.columns)}")
+            
+            # Try to find a suitable column
+            for col in df.columns:
+                if 'close' in col.lower() or 'price' in col.lower():
+                    df['close'] = df[col]
+                    print(f"Using '{col}' as 'close' column")
+                    break
+            else:
+                # If we still don't have a 'close' column, use the 4th column (typical location of close price)
+                if len(df.columns) >= 4:
+                    df['close'] = df.iloc[:, 3]
+                    print(f"Using column at index 3 as 'close' column")
+                else:
+                    raise ValueError(f"Cannot find 'close' price column in data. Available columns: {list(df.columns)}")
+        
+        # Convert string values to float
+        for col in ['open', 'high', 'low', 'close', 'volume']:
+            if col in df.columns and df[col].dtype == 'object':
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Basic calculations
+        current_price = df['close'].iloc[-1]
+        
+        # Simple Moving Averages (SMA)
+        df['ma_20'] = df['close'].rolling(window=20).mean()
+        df['ma_50'] = df['close'].rolling(window=50).mean()
+        df['ma_200'] = df['close'].rolling(window=200).mean()
+        
+        # Get the most recent values for moving averages
+        ma_20 = df['ma_20'].iloc[-1]
+        ma_50 = df['ma_50'].iloc[-1]
+        ma_200 = df['ma_200'].iloc[-1]
+        
+        # MACD (Moving Average Convergence Divergence)
+        df['ema_12'] = df['close'].ewm(span=12, adjust=False).mean()
+        df['ema_26'] = df['close'].ewm(span=26, adjust=False).mean()
+        df['macd'] = df['ema_12'] - df['ema_26']
+        df['signal'] = df['macd'].ewm(span=9, adjust=False).mean()
+        
+        # Get recent MACD values
+        macd = df['macd'].iloc[-1]
+        signal = df['signal'].iloc[-1]
+        
+        # RSI (Relative Strength Index)
+        delta = df['close'].diff()
+        gain = delta.where(delta > 0, 0).rolling(window=14).mean()
+        loss = -delta.where(delta < 0, 0).rolling(window=14).mean()
+        rs = gain / loss
+        df['rsi'] = 100 - (100 / (1 + rs))
+        
+        # Get recent RSI value
+        rsi = df['rsi'].iloc[-1]
+        
+        # Bollinger Bands
+        df['bb_middle'] = df['close'].rolling(window=20).mean()
+        std = df['close'].rolling(window=20).std()
+        df['bb_upper'] = df['bb_middle'] + (std * 2)
+        df['bb_lower'] = df['bb_middle'] - (std * 2)
+        
+        # Get recent Bollinger Band values
+        bb_middle = df['bb_middle'].iloc[-1]
+        bb_upper = df['bb_upper'].iloc[-1]
+        bb_lower = df['bb_lower'].iloc[-1]
+        
+        # Volume analysis
+        avg_volume = df['volume'].mean() if 'volume' in df.columns else 0
+        recent_volume = df['volume'].iloc[-1] if 'volume' in df.columns else 0
+        
+        # Price momentum (rate of change)
+        df['roc_5'] = df['close'].pct_change(periods=5) * 100
+        df['roc_20'] = df['close'].pct_change(periods=20) * 100
+        
+        roc_5 = df['roc_5'].iloc[-1]
+        roc_20 = df['roc_20'].iloc[-1]
+        
+        # Return all indicators in a dictionary
+        return {
+            "current_price": current_price,
+            "ma_20": ma_20,
+            "ma_50": ma_50,
+            "ma_200": ma_200,
+            "macd": macd,
+            "signal": signal,
+            "rsi": rsi,
+            "bb_middle": bb_middle,
+            "bb_upper": bb_upper,
+            "bb_lower": bb_lower,
+            "avg_volume": avg_volume,
+            "recent_volume": recent_volume,
+            "roc_5": roc_5,
+            "roc_20": roc_20,
+            "dataframe": df  # Include the dataframe with all calculated indicators
+        }
