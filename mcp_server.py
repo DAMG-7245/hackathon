@@ -19,6 +19,12 @@ from services.edgar_service import EdgarService
 from services.pinecone_service import PineconeService
 from services.web_search_service import WebSearchService
 from services.alpha_vantage_service import AlphaVantageService
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import os
+from datetime import datetime
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -95,9 +101,12 @@ mcp = FastMCP(
     dependencies=[
         "pandas", "numpy", "matplotlib", "seaborn", "plotly",
         "pinecone", "google-generativeai", "sec-edgar-downloader",  # 使用pinecone而不是pinecone-client
-        "alpha_vantage", "python-dotenv", "beautifulsoup4", "lxml","kaleido"
+        "alpha_vantage", "python-dotenv", "beautifulsoup4", 
+        "lxml","kaleido","reportlab","boto3"
     ]
 )
+
+
 
 
 @mcp.tool()
@@ -113,7 +122,9 @@ async def generate_stock_report(symbol: str, ctx: Context) -> str:
         A detailed report with fundamental analysis, technical analysis, and news.
     """
     app_ctx = ctx.request_context.lifespan_context
-    
+    ctx.info(f"开始为 {symbol} 生成报告")
+    ctx.info(f"当前上下文信息: {str(ctx)}")
+   
     # Report progress
     ctx.info(f"Starting research for {symbol}")
     await ctx.report_progress(0, 4)
@@ -190,10 +201,79 @@ async def generate_stock_report(symbol: str, ctx: Context) -> str:
 - Web Search Results (as of report generation date)
 """
     
+    # Save the report as a PDF
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    pdf_filename = f"{symbol}_Research_Report_{timestamp}.pdf"
+    
+    ctx.info(f"Saving PDF report to {pdf_filename}")
+    
+    # Create a PDF document
+    doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
+    styles = getSampleStyleSheet()
+    
+    # Create custom styles
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Title'],
+        fontSize=16,
+        spaceAfter=12
+    )
+    
+    heading1_style = ParagraphStyle(
+        'Heading1',
+        parent=styles['Heading1'],
+        fontSize=14,
+        spaceAfter=10
+    )
+    
+    heading2_style = ParagraphStyle(
+        'Heading2',
+        parent=styles['Heading2'],
+        fontSize=12,
+        spaceAfter=8
+    )
+    
+    normal_style = styles['Normal']
+    
+    # Parse the markdown report into PDF elements
+    elements = []
+    
+    # Split the report into lines
+    lines = report.split('\n')
+    
+    for line in lines:
+        if line.startswith('# '):
+            # Title
+            elements.append(Paragraph(line[2:], title_style))
+            elements.append(Spacer(1, 12))
+        elif line.startswith('## '):
+            # Heading 1
+            elements.append(Paragraph(line[3:], heading1_style))
+            elements.append(Spacer(1, 10))
+        elif line.startswith('### '):
+            # Heading 2
+            elements.append(Paragraph(line[4:], heading2_style))
+            elements.append(Spacer(1, 8))
+        elif line.startswith('- '):
+            # Bullet points
+            elements.append(Paragraph('• ' + line[2:], normal_style))
+            elements.append(Spacer(1, 6))
+        elif line.strip() == '':
+            # Empty line
+            elements.append(Spacer(1, 6))
+        else:
+            # Normal text
+            elements.append(Paragraph(line, normal_style))
+            elements.append(Spacer(1, 6))
+    
+    # Build the PDF
+    doc.build(elements)
+    
+    ctx.info(f"PDF report saved to {pdf_filename}")
     await ctx.report_progress(4, 4)
     ctx.info(f"Research report for {symbol} completed")
     
-    return report
+    return f"Report generated and saved as {pdf_filename}\n\n{report}"
 
 @mcp.tool()
 async def generate_stock_analysis_chart(symbol: str, ctx: Context) -> Image:
