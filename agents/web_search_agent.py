@@ -163,3 +163,61 @@ class WebSearchAgent:
             role += f"- {snippet}\n\n"
         
         return role
+    
+    def _extract_news_summary(self, search_results: List[Dict[str, Any]]) -> str:
+        """
+        Extract and summarize news information from search results.
+        
+        Args:
+            search_results: List of search result items
+            
+        Returns:
+            Summarized news text
+        """
+        # Extract snippets related to news
+        news_snippets = []
+        
+        for result in search_results:
+            snippet = result.get("snippet", "").lower()
+            if any(keyword in snippet for keyword in ["news", "announce", "report", "update", "recent"]):
+                news_snippets.append(result.get("snippet", ""))
+        
+        # Combine into a summary
+        if not news_snippets:
+            return "No recent news found. Check the company's press releases or news section for updates."
+            
+        # Format as markdown
+        news = "### Recent News\n\n"
+        for snippet in news_snippets[:3]:  # Limit to top 3 most relevant snippets
+            news += f"- {snippet}\n\n"
+        
+        return news
+
+    def _extract_outlook(self, search_results: List[Dict[str, Any]]) -> str:
+        """
+        Extract and summarize future outlook information from search results.
+        
+        Args:
+            search_results: List of search result items
+            
+        Returns:
+            Summarized outlook text
+        """
+        # Extract snippets related to outlook
+        outlook_snippets = []
+        
+        for result in search_results:
+            snippet = result.get("snippet", "").lower()
+            if any(keyword in snippet for keyword in ["outlook", "forecast", "future", "prediction", "guidance", "expect"]):
+                outlook_snippets.append(result.get("snippet", ""))
+        
+        # Combine into a summary
+        if not outlook_snippets:
+            return "No specific outlook information found. Check the company's latest earnings call transcript or investor presentations."
+            
+        # Format as markdown
+        outlook = "### Future Outlook\n\n"
+        for snippet in outlook_snippets[:3]:  # Limit to top 3 most relevant snippets
+            outlook += f"- {snippet}\n\n"
+        
+        return outlook

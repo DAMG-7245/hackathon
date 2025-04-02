@@ -61,8 +61,8 @@ class EdgarService:
                 return self._get_filing_paths(existing_filings)
         
         # Download filings
-        date_str = f"{years} years ago"
-        self.downloader.get(form_type, symbol, after=date_str, download_details=False)
+        
+        self.downloader.get(form_type, symbol, after="2020-01-01", download_details=False)
         
         # Get filing directories
         filing_dirs = []
