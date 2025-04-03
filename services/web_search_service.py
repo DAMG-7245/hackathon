@@ -2,6 +2,9 @@ import os
 import json
 from typing import Dict, List, Optional, Any
 import httpx
+import logging
+logger = logging.getLogger('web_search_service')
+logger.setLevel(logging.DEBUG)
 
 
 class WebSearchService:
@@ -18,6 +21,7 @@ class WebSearchService:
         self.base_url = "https://serpapi.com/search"
     
     async def search(self, query: str, num_results: int = 10) -> List[Dict[str, Any]]:
+        print(f"[DEBUG] 進入 WebSearchService.search 方法，查詢: {query}")
         """
         Perform a web search.
         
